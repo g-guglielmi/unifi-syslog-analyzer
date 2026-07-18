@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UniFi Syslog Analyzer</title>
+<style>
+:root {
+  color-scheme: light;
+  --page:        #f9f9f7;
+  --surface:     #fcfcfb;
+  --ink:         #0b0b0b;
+  --ink-2:       #52514e;
+  --muted:       #898781;
+  --grid:        #e1e0d9;
+  --baseline:    #c3c2b7;
+  --border:      rgba(11,11,11,0.10);
+  --good:        #0ca30c;
+  --warning:     #fab219;
+  --serious:     #ec835a;
+  --critical:    #d03b3b;
+  --accent:      #2a78d6;
+  --tint-good:   rgba(12,163,12,0.07);
+  --tint-warn:   rgba(250,178,25,0.10);
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --page:     #0d0d0d;
+    --surface:  #1a1a19;
+    --ink:      #ffffff;
+    --ink-2:    #c3c2b7;
+    --muted:    #898781;
+    --grid:     #2c2c2a;
+    --baseline: #383835;
+    --border:   rgba(255,255,255,0.10);
+    --accent:   #3987e5;
+    --tint-good: rgba(12,163,12,0.12);
+    --tint-warn: rgba(250,178,25,0.10);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page:     #0d0d0d;
+  --surface:  #1a1a19;
+  --ink:      #ffffff;
+  --ink-2:    #c3c2b7;
+  --muted:    #898781;
+  --grid:     #2c2c2a;
+  --baseline: #383835;
+  --border:   rgba(255,255,255,0.10);
+  --accent:   #3987e5;
+  --tint-good: rgba(12,163,12,0.12);
+  --tint-warn: rgba(250,178,25,0.10);
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--page); color: var(--ink);
+  font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+.wrap { max-width: 1280px; margin: 0 auto; padding: 20px 24px 60px; }
+header { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 18px; }
+h1 { font-size: 19px; margin: 0; font-weight: 650; }
+h2 { font-size: 14px; font-weight: 650; margin: 26px 0 10px; }
+.sub { color: var(--muted); font-size: 12.5px; }
+.spacer { flex: 1; }
+button, .btn {
+  font: inherit; color: var(--ink); background: var(--surface);
+  border: 1px solid var(--border); border-radius: 8px;
+  padding: 6px 12px; cursor: pointer; text-decoration: none; display: inline-block;
+}
+button:hover, .btn:hover { border-color: var(--baseline); }
+.btn-primary { background: var(--accent); color: #fff; border-color: transparent; }
+.card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; padding: 14px 16px;
+}
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.tile .v { font-size: 26px; font-weight: 650; margin-top: 2px; }
+.tile .l { color: var(--ink-2); font-size: 12px; }
+.tile .s { color: var(--muted); font-size: 11.5px; margin-top: 2px; }
+
+.filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 14px 0 10px; }
+.filters select, .filters input[type=text] {
+  font: inherit; color: var(--ink); background: var(--surface);
+  border: 1px solid var(--border); border-radius: 8px; padding: 5px 8px;
+}
+.filters label { color: var(--ink-2); font-size: 12.5px; display: flex; gap: 5px; align-items: center; }
+
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { text-align: left; padding: 6px 9px; border-bottom: 1px solid var(--grid); vertical-align: top; }
+th { color: var(--ink-2); font-weight: 600; font-size: 12px; white-space: nowrap;
+     cursor: pointer; user-select: none; position: sticky; top: 0; background: var(--surface); }
+th .dir { color: var(--muted); }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+td.ports { font-family: ui-monospace, "Cascadia Mono", Menlo, monospace; font-size: 12px; max-width: 340px; }
+td.rules { color: var(--ink-2); font-size: 12px; max-width: 260px; }
+tr.candidate td { background: var(--tint-good); }
+tr.scan td { background: var(--tint-warn); }
+.table-scroll { overflow-x: auto; }
+
+.badge { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.badge .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.flag { font-size: 11px; color: var(--ink-2); border: 1px solid var(--border);
+        border-radius: 999px; padding: 1px 8px; margin-left: 6px; white-space: nowrap; }
+
+.matrix-scroll { overflow-x: auto; }
+.matrix { border-collapse: collapse; font-size: 12px; }
+.matrix th { position: static; cursor: default; background: transparent; border: 0;
+             color: var(--ink-2); font-weight: 600; padding: 4px 6px; }
+.matrix th.rowh { text-align: right; }
+.matrix td {
+  border: 2px solid var(--surface); border-radius: 4px; padding: 0;
+  min-width: 58px; height: 30px; text-align: center;
+  font-variant-numeric: tabular-nums; cursor: pointer;
+}
+.matrix td.empty { background: transparent; color: var(--grid); cursor: default; }
+.legend { display: flex; align-items: center; gap: 8px; margin-top: 8px;
+          color: var(--muted); font-size: 11.5px; }
+.legend .ramp { display: flex; height: 10px; border-radius: 3px; overflow: hidden; }
+.legend .ramp i { width: 18px; }
+
+#tooltip {
+  position: fixed; pointer-events: none; z-index: 10; display: none;
+  background: var(--surface); color: var(--ink); border: 1px solid var(--border);
+  border-radius: 8px; padding: 7px 10px; font-size: 12px;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.18); max-width: 300px;
+}
+details { margin-top: 22px; }
+summary { cursor: pointer; font-weight: 650; font-size: 14px; }
+details .card { margin-top: 10px; }
+pre.raw { margin: 0; white-space: pre-wrap; word-break: break-all;
+          font-size: 11.5px; color: var(--ink-2);
+          border-bottom: 1px solid var(--grid); padding: 4px 0; }
+.error-banner { background: var(--tint-warn); border: 1px solid var(--warning);
+                border-radius: 10px; padding: 8px 12px; margin-bottom: 12px; display: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>UniFi Syslog Analyzer</h1>
+    <span class="sub" id="updated">loading…</span>
+    <span class="spacer"></span>
+    <label class="sub"><input type="checkbox" id="autorefresh" checked> auto-refresh 30 s</label>
+    <button id="refreshBtn" title="Reload data now">Refresh</button>
+    <a class="btn btn-primary" href="/api/report.csv">Download CSV</a>
+  </header>
+
+  <div class="error-banner" id="banner"></div>
+
+  <div class="tiles" id="tiles"></div>
+
+  <h2>Zone-to-zone traffic matrix <span class="sub">(hits, log scale — click a cell to filter the table)</span></h2>
+  <div class="card matrix-scroll">
+    <div id="matrix"></div>
+    <div class="legend" id="legend"></div>
+  </div>
+
+  <h2>Zone-pair flows</h2>
+  <div class="filters">
+    <select id="fSrc"><option value="">src zone: all</option></select>
+    <select id="fDst"><option value="">dst zone: all</option></select>
+    <select id="fAct"><option value="">action: all</option></select>
+    <input type="text" id="fText" placeholder="search ports / rules…" size="22">
+    <label><input type="checkbox" id="fCand"> rule candidates only</label>
+    <button id="fReset">Reset</button>
+    <span class="sub" id="rowCount"></span>
+  </div>
+  <div class="card table-scroll">
+    <table id="flows">
+      <thead><tr>
+        <th data-k="src_zone">Src zone<span class="dir"></span></th>
+        <th data-k="dst_zone">Dst zone<span class="dir"></span></th>
+        <th data-k="proto">Proto<span class="dir"></span></th>
+        <th data-k="action">Action<span class="dir"></span></th>
+        <th data-k="hits" class="num">Hits<span class="dir"></span></th>
+        <th data-k="distinct_src_ips" class="num">Src IPs<span class="dir"></span></th>
+        <th data-k="distinct_dst_ips" class="num">Dst IPs<span class="dir"></span></th>
+        <th data-k="ports">Dst ports<span class="dir"></span></th>
+        <th data-k="rules_matched">Rules matched<span class="dir"></span></th>
+        <th data-k="last_seen_unix">Last seen<span class="dir"></span></th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <details id="netPanel">
+    <summary>Networks <span class="sub" id="netCount"></span></summary>
+    <div class="card table-scroll">
+      <p class="sub" style="margin-top:0">
+        Enumerated from the controller (or a static table).
+        <button id="netRefresh">Re-enumerate now</button>
+        <span class="sub" id="netMsg"></span>
+      </p>
+      <table id="nets"><thead><tr>
+        <th>Name</th><th class="num">VLAN</th><th>CIDR</th><th>Gateway</th><th>Zone</th><th>Source</th>
+      </tr></thead><tbody></tbody></table>
+    </div>
+  </details>
+
+  <details id="unparsedPanel" style="display:none">
+    <summary>Unparsed lines <span class="sub" id="unpCount"></span></summary>
+    <div class="card">
+      <p class="sub" style="margin-top:0">Raw samples of lines the parser could not read
+        (newest first). A steadily growing count means the log format differs from expectations.</p>
+      <div id="unparsedList"></div>
+    </div>
+  </details>
+</div>
+<div id="tooltip"></div>
+
+<script>
+"use strict";
+/* Sequential blue ramp (reference palette, steps 100..700). Light mode:
+   more = darker. Dark mode: reversed so near-zero recedes into the dark
+   surface and high values come forward. */
+const RAMP = ["#cde2fb","#b7d3f6","#9ec5f4","#86b6ef","#6da7ec","#5598e7",
+              "#3987e5","#2a78d6","#256abf","#1c5cab","#184f95","#104281","#0d366b"];
+const ACTION_COLOR = { Allow:"var(--good)", Block:"var(--critical)",
+                       Drop:"var(--critical)", Reject:"var(--serious)", "?":"var(--muted)" };
+const ZONE_TAIL = ["External","Multicast","Broadcast","Unknown"]; // sort last
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g,
+  c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmt = n => Number(n).toLocaleString("en-US");
+const isDark = () => matchMedia("(prefers-color-scheme: dark)").matches
+  && document.documentElement.dataset.theme !== "light"
+  || document.documentElement.dataset.theme === "dark";
+
+let reportRows = [], summary = null, sortKey = "hits", sortDir = -1;
+
+function zoneSort(a, b) {
+  const ta = ZONE_TAIL.indexOf(a), tb = ZONE_TAIL.indexOf(b);
+  if (ta !== tb) return (ta === -1 ? -1 : tb === -1 ? 1 : ta - tb);
+  return a.localeCompare(b);
+}
+
+function rampColor(hits, maxHits) {
+  const n = RAMP.length;
+  let i = Math.floor(Math.log(hits + 1) / Math.log(maxHits + 1) * (n - 1));
+  i = Math.max(0, Math.min(n - 1, i));
+  const idx = isDark() ? (n - 1 - i) : i;
+  return { bg: RAMP[idx], light: idx <= 5 };  // light fill -> dark text
+}
+
+function renderTiles() {
+  if (!summary) return;
+  const cap = summary.capture_start
+    ? new Date(summary.capture_start * 1000).toLocaleDateString() + " – "
+      + new Date(summary.capture_end * 1000).toLocaleDateString()
+    : "no data yet";
+  const t = summary.totals || {};
+  const tiles = [
+    ["Events", fmt(summary.events), "aggregated syslog packets"],
+    ["Unique flows", fmt(summary.flow_rows), "src·dst·proto·port·rule tuples"],
+    ["Zone pairs", fmt(t.groups ?? 0), (t.rule_candidates ?? 0) + " rule candidates"],
+    ["Networks", fmt(summary.networks), (summary.zones || []).length + " zones"],
+    ["Unparsed", fmt(summary.unparsed), "raw lines kept for diagnosis"],
+    ["Capture window", cap, ""],
+  ];
+  $("tiles").innerHTML = tiles.map(([l, v, s]) =>
+    `<div class="card tile"><div class="l">${esc(l)}</div>` +
+    `<div class="v">${esc(v)}</div><div class="s">${esc(s)}</div></div>`).join("");
+}
+
+function renderMatrix() {
+  const hitsBy = new Map();
+  let maxHits = 0;
+  const zones = new Set();
+  for (const r of reportRows) {
+    zones.add(r.src_zone); zones.add(r.dst_zone);
+    const k = r.src_zone + " " + r.dst_zone;
+    const v = (hitsBy.get(k) || 0) + r.hits;
+    hitsBy.set(k, v);
+    if (v > maxHits) maxHits = v;
+  }
+  const zs = [...zones].sort(zoneSort);
+  if (!zs.length) { $("matrix").innerHTML = "<span class='sub'>No traffic yet.</span>"; return; }
+  let h = "<table class='matrix'><tr><th></th>" +
+    zs.map(z => `<th>${esc(z)}</th>`).join("") + "</tr>";
+  for (const src of zs) {
+    h += `<tr><th class="rowh">${esc(src)}</th>`;
+    for (const dst of zs) {
+      const hits = hitsBy.get(src + " " + dst);
+      if (!hits) { h += "<td class='empty'>·</td>"; continue; }
+      const c = rampColor(hits, maxHits);
+      h += `<td style="background:${c.bg};color:${c.light ? "#0b0b0b" : "#ffffff"}"
+             data-src="${esc(src)}" data-dst="${esc(dst)}" data-hits="${hits}">${fmt(hits)}</td>`;
+    }
+    h += "</tr>";
+  }
+  h += "</table>";
+  $("matrix").innerHTML = h;
+  $("legend").innerHTML = "low <div class='ramp'>" +
+    (isDark() ? [...RAMP].reverse() : RAMP).map(c => `<i style="background:${c}"></i>`).join("") +
+    "</div> high";
+
+  const tip = $("tooltip");
+  $("matrix").querySelectorAll("td[data-hits]").forEach(td => {
+    td.addEventListener("mousemove", ev => {
+      tip.style.display = "block";
+      tip.style.left = Math.min(ev.clientX + 14, innerWidth - 310) + "px";
+      tip.style.top = (ev.clientY + 14) + "px";
+      tip.innerHTML = `<b>${esc(td.dataset.src)} → ${esc(td.dataset.dst)}</b><br>` +
+        `${fmt(td.dataset.hits)} hits — click to filter the table`;
+    });
+    td.addEventListener("mouseleave", () => tip.style.display = "none");
+    td.addEventListener("click", () => {
+      $("fSrc").value = td.dataset.src;
+      $("fDst").value = td.dataset.dst;
+      renderTable();
+      $("flows").scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  });
+}
+
+function fillFilterOptions() {
+  const src = new Set(), dst = new Set(), act = new Set();
+  for (const r of reportRows) { src.add(r.src_zone); dst.add(r.dst_zone); act.add(r.action); }
+  const fill = (sel, values, label) => {
+    const cur = sel.value;
+    sel.innerHTML = `<option value="">${label}: all</option>` +
+      [...values].sort(zoneSort).map(v => `<option>${esc(v)}</option>`).join("");
+    if ([...sel.options].some(o => o.value === cur)) sel.value = cur;
+  };
+  fill($("fSrc"), src, "src zone");
+  fill($("fDst"), dst, "dst zone");
+  fill($("fAct"), act, "action");
+}
+
+function filteredRows() {
+  const s = $("fSrc").value, d = $("fDst").value, a = $("fAct").value;
+  const q = $("fText").value.trim().toLowerCase();
+  const cand = $("fCand").checked;
+  return reportRows.filter(r =>
+    (!s || r.src_zone === s) && (!d || r.dst_zone === d) &&
+    (!a || r.action === a) && (!cand || r.rule_candidate) &&
+    (!q || (r.ports + " " + r.rules_matched + " " + r.proto).toLowerCase().includes(q)));
+}
+
+function renderTable() {
+  const rows = filteredRows();
+  rows.sort((x, y) => {
+    const a = x[sortKey], b = y[sortKey];
+    return (typeof a === "number" ? a - b : String(a).localeCompare(String(b))) * sortDir;
+  });
+  $("rowCount").textContent = rows.length + " of " + reportRows.length + " groups";
+  document.querySelectorAll("#flows th").forEach(th => {
+    th.querySelector(".dir").textContent =
+      th.dataset.k === sortKey ? (sortDir < 0 ? " ↓" : " ↑") : "";
+  });
+  $("flows").querySelector("tbody").innerHTML = rows.map(r => {
+    const cls = r.rule_candidate ? "candidate" : r.scan_flag ? "scan" : "";
+    const flags = (r.rule_candidate ? "<span class='flag'>rule candidate</span>" : "") +
+                  (r.scan_flag ? "<span class='flag'>probable scan</span>" : "");
+    return `<tr class="${cls}">
+      <td>${esc(r.src_zone)}</td><td>${esc(r.dst_zone)}</td><td>${esc(r.proto)}</td>
+      <td><span class="badge"><span class="dot" style="background:${ACTION_COLOR[r.action] || "var(--muted)"}"></span>${esc(r.action)}</span>${flags}</td>
+      <td class="num">${fmt(r.hits)}</td>
+      <td class="num">${fmt(r.distinct_src_ips)}</td>
+      <td class="num">${fmt(r.distinct_dst_ips)}</td>
+      <td class="ports">${esc(r.ports)}</td>
+      <td class="rules">${esc(r.rules_matched)}</td>
+      <td>${esc(r.last_seen)}</td></tr>`;
+  }).join("");
+}
+
+function renderNetworks(nets) {
+  $("netCount").textContent = "(" + nets.length + ")";
+  $("nets").querySelector("tbody").innerHTML = nets
+    .sort((a, b) => zoneSort(a.zone, b.zone) || a.name.localeCompare(b.name))
+    .map(n => `<tr><td>${esc(n.name)}</td><td class="num">${n.vlan_id ?? ""}</td>
+      <td class="ports">${esc(n.cidr)}</td><td class="ports">${esc(n.gateway_ip || "")}</td>
+      <td>${esc(n.zone)}</td><td class="sub">${esc(n.source)}</td></tr>`).join("");
+}
+
+async function renderUnparsed() {
+  if (!summary || !summary.unparsed) { $("unparsedPanel").style.display = "none"; return; }
+  $("unparsedPanel").style.display = "";
+  $("unpCount").textContent = "(" + fmt(summary.unparsed) + ")";
+  if (!$("unparsedPanel").open) return;
+  const rows = await (await fetch("/api/unparsed?limit=25")).json();
+  $("unparsedList").innerHTML = rows.map(r =>
+    `<pre class="raw">${esc(new Date(r.received_at * 1000).toLocaleString())}  ${esc(r.raw)}</pre>`).join("");
+}
+
+async function loadAll() {
+  try {
+    const [rep, sum, nets] = await Promise.all([
+      fetch("/api/report").then(r => r.json()),
+      fetch("/api/summary").then(r => r.json()),
+      fetch("/api/networks").then(r => r.json()),
+    ]);
+    reportRows = rep.rows;
+    summary = Object.assign(sum, { totals: rep.totals });
+    $("banner").style.display = "none";
+    renderTiles(); renderMatrix(); fillFilterOptions(); renderTable();
+    renderNetworks(nets); renderUnparsed();
+    $("updated").textContent = "updated " + new Date().toLocaleTimeString();
+  } catch (e) {
+    $("banner").textContent = "Failed to load data: " + e;
+    $("banner").style.display = "block";
+  }
+}
+
+document.querySelectorAll("#flows th").forEach(th =>
+  th.addEventListener("click", () => {
+    const k = th.dataset.k;
+    if (sortKey === k) sortDir = -sortDir; else { sortKey = k; sortDir = -1; }
+    renderTable();
+  }));
+["fSrc", "fDst", "fAct", "fCand"].forEach(id => $(id).addEventListener("change", renderTable));
+$("fText").addEventListener("input", renderTable);
+$("fReset").addEventListener("click", () => {
+  ["fSrc", "fDst", "fAct"].forEach(id => $(id).value = "");
+  $("fText").value = ""; $("fCand").checked = false; renderTable();
+});
+$("refreshBtn").addEventListener("click", loadAll);
+$("unparsedPanel").addEventListener("toggle", renderUnparsed);
+$("netRefresh").addEventListener("click", async () => {
+  $("netMsg").textContent = "re-enumerating…";
+  try {
+    const res = await (await fetch("/api/refresh-networks", { method: "POST" })).json();
+    $("netMsg").textContent = res.error
+      ? "failed: " + res.error
+      : `ok — ${res.networks} networks (${res.zone_source})`;
+    loadAll();
+  } catch (e) { $("netMsg").textContent = "failed: " + e; }
+});
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { renderMatrix(); });
+
+setInterval(() => { if ($("autorefresh").checked) loadAll(); }, 30000);
+loadAll();
+</script>
+</body>
+</html>
