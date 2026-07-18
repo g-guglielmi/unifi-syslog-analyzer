@@ -240,26 +240,6 @@ def main():
     check("refresh-networks returns 400 without UNIFI_HOST",
           refreshed_code == 400, str(refreshed_code))
 
-    print("== live log ==")
-    live = get_json("/api/live?since=0&limit=2000")
-    check("live: seq == 326 parsed events", live["seq"] == 326,
-          str(live["seq"]))
-    check("live: all events buffered", len(live["events"]) == 326,
-          str(len(live["events"])))
-    ev = live["events"][0]
-    check("live: event fields present",
-          all(k in ev for k in ("seq", "ts", "src", "dst", "proto",
-                                "dst_port", "action", "descr")), str(ev))
-    check("live: has Drop events with ports",
-          any(e["action"] == "Drop" and e["dst_port"] == 445
-              for e in live["events"]))
-    check("live: ICMP event carries -1 port sentinel",
-          any(e["proto"] == "ICMP" and e["dst_port"] == -1
-              for e in live["events"]))
-    tail = get_json(f"/api/live?since={live['seq']}")
-    check("live: incremental fetch returns nothing new",
-          tail["seq"] == live["seq"] and tail["events"] == [], str(tail))
-
     print("== SIGTERM mid-batch (container stop case) ==")
     for _ in range(10):   # DNS total must reach 60 only via final flush
         send(line("LAN_IN-A-2002", "Allow PC DNS",

@@ -1,7 +1,7 @@
 # unifi-syslog-analyzer
 
 Turn a UniFi gateway's firewall syslog into a **zone-to-zone traffic
-report** you can write firewall rules from — live dashboard, JSON API,
+report** you can write firewall rules from — web dashboard, JSON API,
 and CSV export. Built for the job of replacing broad "Allow All"
 zone-pair policies with minimal explicit rules based on what actually
 talks to what.
@@ -17,11 +17,14 @@ talks to what.
 - **Loss-safe**: SIGTERM (container stop/restart) triggers a final flush.
 - **Dashboard**: zone matrix heatmap, filterable flow table, rule
   candidates highlighted, port-scan noise flagged, light/dark theme.
-- **Live log view**: a real-time tail of parsed events (source,
-  destination, protocol, port, rule) with allowed traffic highlighted
-  green and blocked traffic red, filterable by IP and/or port.
 - **CSV download** of the consolidated report, any time — safe to use
   mid-capture.
+
+> Looking for a real-time, multi-device firewall log (UniFi **and** Sophos,
+> green/red allow-block, per-device)? That's the companion project
+> [firewall-live-log](https://github.com/g-guglielmi/firewall-live-log).
+> This repo is the batch rule-mining tool; that one is the always-on live
+> view.
 
 ## Quick start
 
@@ -127,17 +130,6 @@ Zone membership prefers the zone-based-firewall API (Network ≥ 9.0);
 otherwise it falls back to the network `purpose` field (corporate →
 Internal, guest → Guest, VPN purposes → VPN).
 
-## Live log
-
-The **Live log** tab tails events as they arrive (2 s polling of an
-in-memory ring buffer of the last 2000 parsed events — a tail, not a
-second database; the aggregated flows table remains the durable record).
-Each row shows time, source IP, destination IP, protocol, destination
-port (— for ICMP), the allow/block verdict, and the matching rule.
-Allowed traffic is tinted green, blocked/rejected traffic red. Filter by
-IP (matches source or destination, substring — `10.30.20.` matches the
-whole subnet), by exact port, or both; pause to read, clear to reset.
-
 ## Reading the report
 
 - **Rule candidates** (green rows): `Allow` traffic between known zones,
@@ -162,7 +154,6 @@ whole subnet), by exact port, or both; pause to read, clear to reset.
 | `GET /api/summary` | Counters, capture window, listener stats. |
 | `GET /api/networks` | The enumerated/static network table. |
 | `GET /api/unparsed?limit=25` | Raw samples of unparseable lines. |
-| `GET /api/live?since=0&limit=500` | Recent parsed events (in-memory ring buffer, incremental by `seq`). |
 | `POST /api/refresh-networks` | Re-enumerate from the controller now. |
 
 ## Testing

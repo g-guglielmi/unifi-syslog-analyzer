@@ -37,7 +37,6 @@ import sys
 import threading
 
 import listener
-import livebuf
 import store
 import unifi_api
 import webserver
@@ -142,12 +141,10 @@ def main():
     if hasattr(signal, "SIGBREAK"):   # Windows console equivalent
         signal.signal(signal.SIGBREAK, on_signal)
 
-    live_buffer = livebuf.LiveBuffer(maxlen=2000)
     threads = []
     listener_thread = threading.Thread(
         target=listener.run, name="listener",
-        args=(stop_event, db_path, syslog_port, syslog_bind, unparsed_cap,
-              live_buffer))
+        args=(stop_event, db_path, syslog_port, syslog_bind, unparsed_cap))
     listener_thread.start()
     threads.append(listener_thread)
 
@@ -157,7 +154,7 @@ def main():
                              args=(stop_event, interval), daemon=True)
         t.start()
 
-    state = webserver.AppState(db_path, refresh_once, live_buffer)
+    state = webserver.AppState(db_path, refresh_once)
     httpd = webserver.serve(state, http_bind, http_port)
     t = threading.Thread(target=httpd.serve_forever, name="web", daemon=True)
     t.start()
