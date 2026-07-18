@@ -205,3 +205,7 @@ export, and that a SIGTERM mid-batch loses no data.
   shows raw samples; please open an issue with a couple of them.
 - The database persists in the `/data` volume across container
   upgrades; delete the volume to start a fresh capture.
+
+## License
+
+[MIT](LICENSE)
