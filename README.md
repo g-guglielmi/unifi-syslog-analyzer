@@ -25,15 +25,23 @@ talks to what.
 
 ## Quick start
 
+Prebuilt multi-arch images (amd64/arm64) are published to GHCR on every
+release tag:
+
 ```sh
-docker build -t unifi-syslog-analyzer https://github.com/g-guglielmi/unifi-syslog-analyzer.git
 docker run -d --name unifi-syslog-analyzer --restart unless-stopped \
   -p 5514:5514/udp -p 8080:8080 \
   -v unifi-syslog-data:/data \
   -e UNIFI_HOST=https://192.168.1.1 \
   -e UNIFI_API_KEY='your-api-key' \
-  unifi-syslog-analyzer
+  ghcr.io/g-guglielmi/unifi-syslog-analyzer:latest
 ```
+
+Pin a version for reproducible deployments:
+`ghcr.io/g-guglielmi/unifi-syslog-analyzer:v0.0.1` (all versions under
+[Packages](https://github.com/g-guglielmi/unifi-syslog-analyzer/pkgs/container/unifi-syslog-analyzer)).
+Building locally still works if you prefer:
+`docker build -t unifi-syslog-analyzer https://github.com/g-guglielmi/unifi-syslog-analyzer.git`
 
 Then:
 
@@ -163,8 +171,12 @@ The image ships with a synthetic end-to-end harness (no external
 network needed):
 
 ```sh
-docker run --rm unifi-syslog-analyzer python3 /app/test_harness.py
+docker run --rm ghcr.io/g-guglielmi/unifi-syslog-analyzer:latest python3 /app/test_harness.py
 ```
+
+The same harness runs in CI on every push and as a gate in the release
+workflow — an image only reaches GHCR if all checks pass. It also runs
+directly on Windows/Linux/macOS with plain `python3 test_harness.py`.
 
 It boots the real app, replays synthetic SIP/RTP/DNS/SMB/scan traffic,
 verifies aggregation, port-range consolidation, scan flagging, the CSV

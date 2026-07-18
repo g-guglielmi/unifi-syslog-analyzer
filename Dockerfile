@@ -1,5 +1,8 @@
 FROM python:3.13-slim
 
+LABEL org.opencontainers.image.source="https://github.com/g-guglielmi/unifi-syslog-analyzer" \
+      org.opencontainers.image.description="Zone-pair traffic mining and live dashboard from UniFi firewall syslog"
+
 # Stdlib only — no pip install layer at all.
 WORKDIR /app
 COPY app/ /app/
