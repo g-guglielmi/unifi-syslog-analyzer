@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/icon.png" width="96" height="96" alt="unifi-syslog-analyzer icon"></p>
+
 # unifi-syslog-analyzer
 
 Turn a UniFi gateway's firewall syslog into a **zone-to-zone traffic
@@ -55,6 +57,15 @@ Pin a version for reproducible deployments:
 [Packages](https://github.com/g-guglielmi/unifi-syslog-analyzer/pkgs/container/unifi-syslog-analyzer)).
 Building locally still works if you prefer:
 `docker build -t unifi-syslog-analyzer https://github.com/g-guglielmi/unifi-syslog-analyzer.git`
+
+**Unraid / Portainer / other Docker UIs**: when adding the container
+manually, paste this into the "Icon URL" field:
+
+```
+https://raw.githubusercontent.com/g-guglielmi/unifi-syslog-analyzer/main/docs/icon.png
+```
+
+(An SVG version is also at `docs/icon.svg` if your UI prefers vector icons.)
 
 Then:
 
