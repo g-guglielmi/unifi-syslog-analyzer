@@ -22,6 +22,7 @@
   --accent:      #2a78d6;
   --tint-good:   rgba(12,163,12,0.07);
   --tint-warn:   rgba(250,178,25,0.10);
+  --tint-bad:    rgba(208,59,59,0.08);
 }
 @media (prefers-color-scheme: dark) {
   :root:where(:not([data-theme="light"])) {
@@ -37,6 +38,7 @@
     --accent:   #3987e5;
     --tint-good: rgba(12,163,12,0.12);
     --tint-warn: rgba(250,178,25,0.10);
+    --tint-bad:  rgba(230,103,103,0.14);
   }
 }
 :root[data-theme="dark"] {
@@ -52,6 +54,7 @@
   --accent:   #3987e5;
   --tint-good: rgba(12,163,12,0.12);
   --tint-warn: rgba(250,178,25,0.10);
+  --tint-bad:  rgba(230,103,103,0.14);
 }
 
 * { box-sizing: border-box; }
@@ -135,6 +138,15 @@ pre.raw { margin: 0; white-space: pre-wrap; word-break: break-all;
           border-bottom: 1px solid var(--grid); padding: 4px 0; }
 .error-banner { background: var(--tint-warn); border: 1px solid var(--warning);
                 border-radius: 10px; padding: 8px 12px; margin-bottom: 12px; display: none; }
+.tabs { display: flex; gap: 2px; margin: 0 0 16px; border-bottom: 1px solid var(--grid); }
+.tabs .tab { border: 0; background: transparent; border-radius: 8px 8px 0 0;
+             padding: 8px 14px; color: var(--ink-2); font-weight: 600; }
+.tabs .tab.active { color: var(--ink); box-shadow: inset 0 -2px 0 var(--accent); }
+#live tbody tr.ev-allow td { background: var(--tint-good); }
+#live tbody tr.ev-block td { background: var(--tint-bad); }
+#live td, #live th { padding: 4px 9px; }
+#live td.ip, #live td.port { font-family: ui-monospace, "Cascadia Mono", Menlo, monospace; font-size: 12.5px; }
+.live-meta { color: var(--muted); font-size: 12px; }
 </style>
 </head>
 <body>
@@ -150,6 +162,12 @@ pre.raw { margin: 0; white-space: pre-wrap; word-break: break-all;
 
   <div class="error-banner" id="banner"></div>
 
+  <nav class="tabs">
+    <button class="tab active" data-page="overview">Overview</button>
+    <button class="tab" data-page="live">Live log</button>
+  </nav>
+
+  <div id="page-overview">
   <div class="tiles" id="tiles"></div>
 
   <h2>Zone-to-zone traffic matrix <span class="sub">(hits, log scale — click a cell to filter the table)</span></h2>
@@ -208,6 +226,31 @@ pre.raw { margin: 0; white-space: pre-wrap; word-break: break-all;
       <div id="unparsedList"></div>
     </div>
   </details>
+  </div><!-- /page-overview -->
+
+  <div id="page-live" style="display:none">
+    <div class="filters">
+      <input type="text" id="lIp" placeholder="filter by IP (src or dst)…" size="24">
+      <input type="text" id="lPort" placeholder="port" size="7" inputmode="numeric">
+      <select id="lAct">
+        <option value="">action: all</option>
+        <option value="Allow">allowed only</option>
+        <option value="blocked">blocked only</option>
+      </select>
+      <label><input type="checkbox" id="lPause"> pause</label>
+      <button id="lClear">Clear</button>
+      <span class="live-meta" id="lMeta"></span>
+    </div>
+    <div class="card table-scroll">
+      <table id="live">
+        <thead><tr>
+          <th>Time</th><th>Source IP</th><th>Destination IP</th>
+          <th>Proto</th><th class="num">Port</th><th>Action</th><th>Rule</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div><!-- /page-live -->
 </div>
 <div id="tooltip"></div>
 
@@ -432,7 +475,70 @@ $("netRefresh").addEventListener("click", async () => {
 });
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { renderMatrix(); });
 
-setInterval(() => { if ($("autorefresh").checked) loadAll(); }, 30000);
+/* ---------------- Live log ---------------- */
+const LIVE_KEEP = 2000, LIVE_SHOW = 500, BLOCKED = new Set(["Block", "Drop", "Reject"]);
+let liveEvents = [], liveSeq = 0, livePage = false, liveTimer = null;
+
+function liveFiltered() {
+  const ip = $("lIp").value.trim();
+  const port = $("lPort").value.trim();
+  const act = $("lAct").value;
+  return liveEvents.filter(e =>
+    (!ip || e.src.includes(ip) || e.dst.includes(ip)) &&
+    (!port || String(e.dst_port) === port) &&
+    (!act || (act === "blocked" ? BLOCKED.has(e.action) : e.action === act)));
+}
+
+function renderLive() {
+  const rows = liveFiltered();
+  const shown = rows.slice(-LIVE_SHOW).reverse();  // newest first
+  $("lMeta").textContent = `${shown.length} shown / ${rows.length} matching / ` +
+    `${liveEvents.length} buffered`;
+  $("live").querySelector("tbody").innerHTML = shown.map(e => {
+    const cls = e.action === "Allow" ? "ev-allow" : BLOCKED.has(e.action) ? "ev-block" : "";
+    return `<tr class="${cls}">
+      <td>${new Date(e.ts * 1000).toLocaleTimeString()}</td>
+      <td class="ip">${esc(e.src)}</td><td class="ip">${esc(e.dst)}</td>
+      <td>${esc(e.proto)}</td>
+      <td class="num port">${e.dst_port >= 0 ? e.dst_port : "—"}</td>
+      <td><span class="badge"><span class="dot" style="background:${ACTION_COLOR[e.action] || "var(--muted)"}"></span>${esc(e.action)}</span></td>
+      <td class="rules">${esc(e.descr || "")}</td></tr>`;
+  }).join("");
+}
+
+async function pollLive() {
+  if (!livePage || $("lPause").checked) return;
+  try {
+    const res = await (await fetch("/api/live?since=" + liveSeq)).json();
+    if (res.seq < liveSeq) { liveEvents = []; }   // app restarted
+    liveSeq = res.seq;
+    if (res.events.length) {
+      liveEvents.push(...res.events);
+      if (liveEvents.length > LIVE_KEEP) liveEvents = liveEvents.slice(-LIVE_KEEP);
+    }
+    renderLive();
+  } catch (e) { $("lMeta").textContent = "live poll failed: " + e; }
+}
+
+function showPage(page) {
+  livePage = page === "live";
+  $("page-overview").style.display = livePage ? "none" : "";
+  $("page-live").style.display = livePage ? "" : "none";
+  document.querySelectorAll(".tabs .tab").forEach(b =>
+    b.classList.toggle("active", b.dataset.page === page));
+  if (livePage) {
+    pollLive();
+    if (!liveTimer) liveTimer = setInterval(pollLive, 2000);
+  }
+}
+document.querySelectorAll(".tabs .tab").forEach(b =>
+  b.addEventListener("click", () => showPage(b.dataset.page)));
+["lIp", "lPort"].forEach(id => $(id).addEventListener("input", renderLive));
+$("lAct").addEventListener("change", renderLive);
+$("lPause").addEventListener("change", () => { if (!$("lPause").checked) pollLive(); });
+$("lClear").addEventListener("click", () => { liveEvents = []; renderLive(); });
+
+setInterval(() => { if ($("autorefresh").checked && !livePage) loadAll(); }, 30000);
 loadAll();
 </script>
 </body>

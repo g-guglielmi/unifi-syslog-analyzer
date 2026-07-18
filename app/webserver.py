@@ -23,9 +23,10 @@ _STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 class AppState:
     """Shared, lock-guarded access to the db for HTTP handlers."""
 
-    def __init__(self, db_path, refresh_networks_cb=None):
+    def __init__(self, db_path, refresh_networks_cb=None, live_buffer=None):
         self.db_path = db_path
         self.refresh_networks_cb = refresh_networks_cb
+        self.live_buffer = live_buffer
         self.lock = threading.Lock()
         self._db = None
         self._resolver = None
@@ -112,6 +113,18 @@ class Handler(BaseHTTPRequestHandler):
                 self._send(200, csv_text, "text/csv; charset=utf-8",
                            {"Content-Disposition":
                             f'attachment; filename="{fname}"'})
+            elif path == "/api/live":
+                if self.state.live_buffer is None:
+                    self._json({"seq": 0, "events": []})
+                    return
+                try:
+                    since = int(params.get("since", ["0"])[0])
+                    limit = min(int(params.get("limit", ["500"])[0]), 2000)
+                except ValueError:
+                    self._json({"error": "since/limit must be integers"}, 400)
+                    return
+                seq, events = self.state.live_buffer.since(since, limit)
+                self._json({"seq": seq, "events": events})
             elif path == "/api/networks":
                 self._json(self.state.query(store.load_networks))
             elif path == "/api/unparsed":

@@ -17,6 +17,9 @@ talks to what.
 - **Loss-safe**: SIGTERM (container stop/restart) triggers a final flush.
 - **Dashboard**: zone matrix heatmap, filterable flow table, rule
   candidates highlighted, port-scan noise flagged, light/dark theme.
+- **Live log view**: a real-time tail of parsed events (source,
+  destination, protocol, port, rule) with allowed traffic highlighted
+  green and blocked traffic red, filterable by IP and/or port.
 - **CSV download** of the consolidated report, any time — safe to use
   mid-capture.
 
@@ -28,8 +31,7 @@ docker run -d --name unifi-syslog-analyzer --restart unless-stopped \
   -p 5514:5514/udp -p 8080:8080 \
   -v unifi-syslog-data:/data \
   -e UNIFI_HOST=https://192.168.1.1 \
-  -e UNIFI_USER=audit \
-  -e UNIFI_PASS='your-password' \
+  -e UNIFI_API_KEY='your-api-key' \
   unifi-syslog-analyzer
 ```
 
@@ -44,15 +46,28 @@ Then:
 3. Watch traffic appear. Collect for one to two weeks before writing
    rules; download the CSV whenever you like.
 
-A **read-only local admin** on the controller is all the API access
-needs. Create a dedicated one; don't reuse a full admin.
+## Controller authentication
+
+**Use an API key.** On the console: **Admins & Users → (your admin) →
+Create API key** (older UIs: Control Plane → Integrations), then pass it
+as `UNIFI_API_KEY`. Keys are revocable, don't expire your session, and —
+crucially — are the **only mechanism that works when MFA is enforced**
+(fabric-joined / UniFi Identity consoles enforce MFA on every account,
+which makes password logins to the API impossible). Prefer creating the
+key under a dedicated admin with **read-only** network permissions.
+
+`UNIFI_USER` + `UNIFI_PASS` remain as a fallback for local accounts
+without MFA and for legacy self-hosted controllers (`:8443`) that
+predate API keys. If a password login is rejected with 401, the log
+tells you to switch to an API key.
 
 ## Configuration (environment variables)
 
 | Variable | Default | Purpose |
 |---|---|---|
 | `UNIFI_HOST` | — | Controller URL (`https://192.168.1.1`, or `https://host:8443` for legacy self-hosted). Unset = no API enumeration. |
-| `UNIFI_USER` / `UNIFI_PASS` | — | Controller credentials (read-only local admin). |
+| `UNIFI_API_KEY` | — | Local API key (preferred; required when MFA is enforced). |
+| `UNIFI_USER` / `UNIFI_PASS` | — | Password fallback (non-MFA local admin only). |
 | `UNIFI_SITE` | `default` | Site name (the `s/<site>` part of controller URLs). |
 | `UNIFI_VERIFY_SSL` | `false` | Set `true` if the controller has a valid certificate. |
 | `NETWORKS_REFRESH_MIN` | `60` | Minutes between re-enumerations. |
@@ -104,6 +119,17 @@ Zone membership prefers the zone-based-firewall API (Network ≥ 9.0);
 otherwise it falls back to the network `purpose` field (corporate →
 Internal, guest → Guest, VPN purposes → VPN).
 
+## Live log
+
+The **Live log** tab tails events as they arrive (2 s polling of an
+in-memory ring buffer of the last 2000 parsed events — a tail, not a
+second database; the aggregated flows table remains the durable record).
+Each row shows time, source IP, destination IP, protocol, destination
+port (— for ICMP), the allow/block verdict, and the matching rule.
+Allowed traffic is tinted green, blocked/rejected traffic red. Filter by
+IP (matches source or destination, substring — `10.30.20.` matches the
+whole subnet), by exact port, or both; pause to read, clear to reset.
+
 ## Reading the report
 
 - **Rule candidates** (green rows): `Allow` traffic between known zones,
@@ -128,6 +154,7 @@ Internal, guest → Guest, VPN purposes → VPN).
 | `GET /api/summary` | Counters, capture window, listener stats. |
 | `GET /api/networks` | The enumerated/static network table. |
 | `GET /api/unparsed?limit=25` | Raw samples of unparseable lines. |
+| `GET /api/live?since=0&limit=500` | Recent parsed events (in-memory ring buffer, incremental by `seq`). |
 | `POST /api/refresh-networks` | Re-enumerate from the controller now. |
 
 ## Testing
@@ -147,9 +174,10 @@ export, and that a SIGTERM mid-batch loses no data.
 
 - The dashboard has **no authentication**. Run it on a management
   network, or put a reverse proxy with auth in front of it.
-- The controller password arrives via environment variable; prefer a
-  dedicated read-only local admin, and treat the host's Docker config
-  accordingly.
+- The controller API key (or password) arrives via environment variable;
+  scope it to a dedicated read-only admin, and treat the host's Docker
+  config accordingly. Revoke the key on the console if the host is ever
+  compromised.
 - `UNIFI_VERIFY_SSL` defaults to off because controllers ship
   self-signed certificates; turn it on if yours has a real one.
 - Firewall logs are metadata about your network — the SQLite volume

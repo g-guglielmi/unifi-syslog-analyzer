@@ -1,8 +1,18 @@
 """UniFi controller API client — network & firewall-zone enumeration.
 
-Stdlib only.  Supports both API layouts:
+Stdlib only.  Two authentication modes:
+
+  * API key (preferred): a local API key created on the console under
+    Admins & Users -> <admin> -> Create API key, sent as X-API-KEY.
+    This is the ONLY mode that works when MFA is enforced (e.g. on
+    fabric-joined / UniFi Identity consoles, where every password login
+    requires a second factor and API password auth is rejected).
+  * Username/password: legacy fallback for local admins without MFA,
+    and for old self-hosted controllers (:8443) that predate API keys.
+
+API layouts supported:
   * UniFi OS consoles (UDM/UDR/UDM Pro/Cloud Key Gen2 on 443):
-      login  POST /api/auth/login
+      login  POST /api/auth/login   (password mode only)
       data   GET  /proxy/network/...
   * legacy self-hosted controllers (:8443):
       login  POST /api/login
@@ -13,9 +23,8 @@ versions).  Zone membership comes from the zone-based-firewall v2 API
 when available (Network >= 9.0); otherwise zones fall back to a mapping
 from each network's `purpose` field.
 
-A read-only local admin is all this needs.  Self-signed certs are the
-norm on controllers, so TLS verification is optional (off by default,
-matching how these are deployed on management networks).
+Self-signed certs are the norm on controllers, so TLS verification is
+optional (off by default, matching management-network deployments).
 """
 
 import ipaddress
@@ -47,16 +56,18 @@ class UniFiError(Exception):
 
 
 class UniFiClient:
-    def __init__(self, host, username, password, site="default",
-                 verify_ssl=False, timeout=15):
+    def __init__(self, host, username=None, password=None, site="default",
+                 verify_ssl=False, timeout=15, api_key=None):
         self.host = host.rstrip("/")
         if "://" not in self.host:
             self.host = "https://" + self.host
         self.username = username
         self.password = password
+        self.api_key = api_key
         self.site = site
         self.timeout = timeout
-        self.is_unifi_os = None   # decided at login
+        # API keys exist only on UniFi OS consoles, so key mode implies it.
+        self.is_unifi_os = True if api_key else None
         self._csrf = None
 
         ctx = ssl.create_default_context()
@@ -74,6 +85,8 @@ class UniFiClient:
         req.add_header("Accept", "application/json")
         if data is not None:
             req.add_header("Content-Type", "application/json")
+        if self.api_key:
+            req.add_header("X-API-KEY", self.api_key)
         if self._csrf:
             req.add_header("X-CSRF-Token", self._csrf)
         with self._opener.open(req, timeout=self.timeout) as resp:
@@ -85,6 +98,11 @@ class UniFiClient:
         return json.loads(raw) if raw else None
 
     def login(self):
+        if self.api_key:
+            return  # header auth, no session needed
+        if not (self.username and self.password):
+            raise UniFiError("no credentials: set UNIFI_API_KEY (preferred) "
+                             "or UNIFI_USER + UNIFI_PASS")
         creds = {"username": self.username, "password": self.password}
         try:
             self._request("POST", "/api/auth/login", creds)
@@ -94,7 +112,12 @@ class UniFiClient:
             if e.code not in (400, 401, 404):
                 raise UniFiError(f"login failed at /api/auth/login: {e}")
             if e.code == 401:
-                raise UniFiError("login rejected (401): check credentials")
+                raise UniFiError(
+                    "login rejected (401). If MFA is enforced for this "
+                    "account (fabric-joined / UniFi Identity consoles "
+                    "enforce it for everyone), password auth cannot work — "
+                    "create a local API key on the console and set "
+                    "UNIFI_API_KEY instead.")
         except urllib.error.URLError as e:
             raise UniFiError(f"cannot reach {self.host}: {e.reason}")
         try:

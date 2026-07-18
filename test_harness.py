@@ -6,7 +6,8 @@ network table, feeds it synthetic UniFi-style syslog over UDP, and
 asserts on the HTTP API, the CSV export, and the SQLite contents —
 including the SIGTERM-mid-batch case (container stop must lose nothing).
 
-Run it in the image (or any POSIX host with Python 3):
+Run it in the image (or any host with Python 3 — Windows included, where
+the graceful-stop signal is CTRL_BREAK instead of SIGTERM):
 
     docker run --rm unifi-syslog-analyzer python3 /app/test_harness.py
 
@@ -26,8 +27,7 @@ import time
 import urllib.error
 import urllib.request
 
-if os.name == "nt":
-    sys.exit("POSIX only (signal semantics); run in the container or on Linux.")
+IS_WIN = os.name == "nt"
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 MAIN = os.path.join(HERE, "app", "main.py")
@@ -100,9 +100,12 @@ def main():
     env.pop("UNIFI_HOST", None)
 
     print("== startup ==")
+    # On Windows the graceful-stop signal is CTRL_BREAK (SIGBREAK), which
+    # needs the child in its own process group; on POSIX it's SIGTERM.
+    creationflags = subprocess.CREATE_NEW_PROCESS_GROUP if IS_WIN else 0
     proc = subprocess.Popen([sys.executable, "-u", MAIN],
                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                            text=True, env=env)
+                            text=True, env=env, creationflags=creationflags)
     out_lines = []
     threading.Thread(target=read_stdout, args=(proc, out_lines),
                      daemon=True).start()
@@ -237,6 +240,26 @@ def main():
     check("refresh-networks returns 400 without UNIFI_HOST",
           refreshed_code == 400, str(refreshed_code))
 
+    print("== live log ==")
+    live = get_json("/api/live?since=0&limit=2000")
+    check("live: seq == 326 parsed events", live["seq"] == 326,
+          str(live["seq"]))
+    check("live: all events buffered", len(live["events"]) == 326,
+          str(len(live["events"])))
+    ev = live["events"][0]
+    check("live: event fields present",
+          all(k in ev for k in ("seq", "ts", "src", "dst", "proto",
+                                "dst_port", "action", "descr")), str(ev))
+    check("live: has Drop events with ports",
+          any(e["action"] == "Drop" and e["dst_port"] == 445
+              for e in live["events"]))
+    check("live: ICMP event carries -1 port sentinel",
+          any(e["proto"] == "ICMP" and e["dst_port"] == -1
+              for e in live["events"]))
+    tail = get_json(f"/api/live?since={live['seq']}")
+    check("live: incremental fetch returns nothing new",
+          tail["seq"] == live["seq"] and tail["events"] == [], str(tail))
+
     print("== SIGTERM mid-batch (container stop case) ==")
     for _ in range(10):   # DNS total must reach 60 only via final flush
         send(line("LAN_IN-A-2002", "Allow PC DNS",
@@ -245,14 +268,14 @@ def main():
         send(line("LAN_IN-A-2006", "Allow PC DNS to gateway",
                   "10.0.40.50", "10.0.40.1", "UDP", 40000, 53))
     time.sleep(0.5)       # well inside the 5 s flush window
-    proc.send_signal(signal.SIGTERM)
+    proc.send_signal(signal.CTRL_BREAK_EVENT if IS_WIN else signal.SIGTERM)
     try:
         rc = proc.wait(timeout=20)
     except subprocess.TimeoutExpired:
         proc.kill()
         rc = None
     time.sleep(0.5)
-    check("clean exit on SIGTERM", rc == 0, f"rc={rc}")
+    check("clean exit on graceful-stop signal", rc == 0, f"rc={rc}")
     check("final flush logged", any("final flush" in l for l in out_lines),
           "\n".join(out_lines[-6:]))
 

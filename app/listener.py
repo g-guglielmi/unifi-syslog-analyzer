@@ -37,7 +37,8 @@ def _flush(db, pending, unparsed_rows, counters):
     db.commit()
 
 
-def run(stop_event, db_path, port, bind="0.0.0.0", unparsed_cap=10000):
+def run(stop_event, db_path, port, bind="0.0.0.0", unparsed_cap=10000,
+        live_buffer=None):
     db = store.open_db(db_path)
 
     counters = {
@@ -85,6 +86,9 @@ def run(stop_event, db_path, port, bind="0.0.0.0", unparsed_cap=10000):
             else:
                 counters["parsed"] += 1
                 src, dst, proto, dport, descr, action = rec
+                if live_buffer is not None:
+                    live_buffer.append(now, src, dst, proto, dport,
+                                       action, descr)
                 key = (src, dst, proto, dport, descr)
                 v = pending.get(key)
                 if v is None:

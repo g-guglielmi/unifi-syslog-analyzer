@@ -16,7 +16,9 @@ Configuration is environment variables only (docker-run friendly):
   UNPARSED_CAP          raw unparseable lines kept (default 10000)
 
   UNIFI_HOST            controller URL, e.g. https://192.168.1.1
-  UNIFI_USER            controller username (read-only local admin)
+  UNIFI_API_KEY         local API key (preferred; the only mode that works
+                        when MFA is enforced on the console)
+  UNIFI_USER            controller username (fallback, no-MFA accounts only)
   UNIFI_PASS            controller password
   UNIFI_SITE            site name              (default "default")
   UNIFI_VERIFY_SSL      "true" to verify TLS   (default false: self-signed)
@@ -33,9 +35,9 @@ import os
 import signal
 import sys
 import threading
-import time
 
 import listener
+import livebuf
 import store
 import unifi_api
 import webserver
@@ -63,14 +65,15 @@ def load_manual_networks(db, path):
     print(f"[networks] loaded {len(rows)} manual networks from {path}")
 
 
-def make_refresher(db_path, host, user, password, site, verify_ssl):
+def make_refresher(db_path, host, user, password, site, verify_ssl,
+                   api_key=None):
     """Returns (refresh_once, loop) where refresh_once() -> result dict."""
     lock = threading.Lock()
 
     def refresh_once():
         with lock:
             client = unifi_api.UniFiClient(host, user, password, site,
-                                           verify_ssl)
+                                           verify_ssl, api_key=api_key)
             rows, zone_source = unifi_api.fetch_network_rows(client)
             db = store.open_db(db_path)
             try:
@@ -119,7 +122,8 @@ def main():
         refresh_once, refresh_loop = make_refresher(
             db_path, unifi_host, env("UNIFI_USER"), env("UNIFI_PASS"),
             env("UNIFI_SITE", "default"),
-            env("UNIFI_VERIFY_SSL", "false").lower() == "true")
+            env("UNIFI_VERIFY_SSL", "false").lower() == "true",
+            api_key=env("UNIFI_API_KEY"))
     elif not networks_json:
         n = db.execute("SELECT COUNT(*) FROM networks").fetchone()[0]
         print("[networks] neither UNIFI_HOST nor NETWORKS_JSON configured"
@@ -135,11 +139,15 @@ def main():
         stop_event.set()
     signal.signal(signal.SIGTERM, on_signal)
     signal.signal(signal.SIGINT, on_signal)
+    if hasattr(signal, "SIGBREAK"):   # Windows console equivalent
+        signal.signal(signal.SIGBREAK, on_signal)
 
+    live_buffer = livebuf.LiveBuffer(maxlen=2000)
     threads = []
     listener_thread = threading.Thread(
         target=listener.run, name="listener",
-        args=(stop_event, db_path, syslog_port, syslog_bind, unparsed_cap))
+        args=(stop_event, db_path, syslog_port, syslog_bind, unparsed_cap,
+              live_buffer))
     listener_thread.start()
     threads.append(listener_thread)
 
@@ -149,7 +157,7 @@ def main():
                              args=(stop_event, interval), daemon=True)
         t.start()
 
-    state = webserver.AppState(db_path, refresh_once)
+    state = webserver.AppState(db_path, refresh_once, live_buffer)
     httpd = webserver.serve(state, http_bind, http_port)
     t = threading.Thread(target=httpd.serve_forever, name="web", daemon=True)
     t.start()
