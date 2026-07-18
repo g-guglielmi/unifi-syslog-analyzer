@@ -26,6 +26,16 @@ talks to what.
 > This repo is the batch rule-mining tool; that one is the always-on live
 > view.
 
+## Screenshot
+
+The dashboard: KPI tiles, the zone-to-zone traffic matrix (log-scaled
+heatmap, click a cell to filter), and the zone-pair flow table with rule
+candidates highlighted green and probable scans flagged amber.
+
+![Dashboard with zone traffic matrix and zone-pair flow table](docs/dashboard.svg)
+
+<sub>Preview rendered with sample data.</sub>
+
 ## Quick start
 
 Prebuilt multi-arch images (amd64/arm64) are published to GHCR on every

@@ -1,0 +1,100 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="560" viewBox="0 0 1000 560" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif">
+  <rect width="1000" height="560" fill="#f9f9f7"/>
+  <!-- header -->
+  <text x="24" y="34" font-size="19" font-weight="700" fill="#0b0b0b">UniFi Syslog Analyzer</text>
+  <text x="228" y="34" font-size="12.5" fill="#898781">updated 12:04:31</text>
+  <rect x="806" y="18" width="72" height="26" rx="8" fill="#fcfcfb" stroke="#e1e0d9"/>
+  <text x="818" y="35" font-size="12.5" fill="#0b0b0b">Refresh</text>
+  <rect x="886" y="18" width="90" height="26" rx="8" fill="#2a78d6"/>
+  <text x="899" y="35" font-size="12.5" fill="#ffffff">Download CSV</text>
+  <text x="24" y="60" font-size="12" fill="#898781">Zone-pair rule-mining and CSV export. For a real-time, multi-device firewall log view, see firewall-live-log.</text>
+  <!-- tiles -->
+  <g>
+    <g><rect x="24" y="72" width="150" height="64" rx="12" fill="#fcfcfb" stroke="#e1e0d9"/><text x="36" y="91" font-size="12" fill="#52514e">Events</text><text x="36" y="115" font-size="21" font-weight="700" fill="#0b0b0b">1,069,614</text><text x="36" y="130" font-size="11" fill="#898781">aggregated packets</text></g>
+    <g><rect x="184" y="72" width="150" height="64" rx="12" fill="#fcfcfb" stroke="#e1e0d9"/><text x="196" y="91" font-size="12" fill="#52514e">Unique flows</text><text x="196" y="115" font-size="21" font-weight="700" fill="#0b0b0b">48,211</text><text x="196" y="130" font-size="11" fill="#898781">src·dst·proto·port</text></g>
+    <g><rect x="344" y="72" width="150" height="64" rx="12" fill="#fcfcfb" stroke="#e1e0d9"/><text x="356" y="91" font-size="12" fill="#52514e">Zone pairs</text><text x="356" y="115" font-size="21" font-weight="700" fill="#0b0b0b">8</text><text x="356" y="130" font-size="11" fill="#898781">5 rule candidates</text></g>
+    <g><rect x="504" y="72" width="150" height="64" rx="12" fill="#fcfcfb" stroke="#e1e0d9"/><text x="516" y="91" font-size="12" fill="#52514e">Networks</text><text x="516" y="115" font-size="21" font-weight="700" fill="#0b0b0b">23</text><text x="516" y="130" font-size="11" fill="#898781">5 zones</text></g>
+    <g><rect x="664" y="72" width="150" height="64" rx="12" fill="#fcfcfb" stroke="#e1e0d9"/><text x="676" y="91" font-size="12" fill="#52514e">Unparsed</text><text x="676" y="115" font-size="21" font-weight="700" fill="#0b0b0b">12</text><text x="676" y="130" font-size="11" fill="#898781">kept for diagnosis</text></g>
+    <g><rect x="824" y="72" width="152" height="64" rx="12" fill="#fcfcfb" stroke="#e1e0d9"/><text x="836" y="91" font-size="12" fill="#52514e">Capture window</text><text x="836" y="113" font-size="14" font-weight="700" fill="#0b0b0b">Jul 1 – Jul 18</text><text x="836" y="130" font-size="11" fill="#898781">2026</text></g>
+  </g>
+  <!-- matrix -->
+  <text x="24" y="166" font-size="14" font-weight="700" fill="#0b0b0b">Zone-to-zone traffic matrix</text>
+  <text x="232" y="166" font-size="12" fill="#898781">(hits, log scale — click a cell to filter)</text>
+  <rect x="24" y="178" width="952" height="150" rx="12" fill="#fcfcfb" stroke="#e1e0d9"/>
+  <g font-size="11" fill="#52514e">
+    <!-- column headers -->
+    <text x="196" y="202" text-anchor="middle">DMZ</text>
+    <text x="286" y="202" text-anchor="middle">Gateway</text>
+    <text x="376" y="202" text-anchor="middle">Internal</text>
+    <text x="466" y="202" text-anchor="middle">External</text>
+    <text x="556" y="202" text-anchor="middle">Guest</text>
+    <text x="646" y="202" text-anchor="middle">MPLS</text>
+    <text x="736" y="202" text-anchor="middle">VPN</text>
+  </g>
+  <g font-size="11" fill="#52514e">
+    <!-- row headers -->
+    <text x="150" y="228" text-anchor="end">Internal</text>
+    <text x="150" y="258" text-anchor="end">Guest</text>
+    <text x="150" y="288" text-anchor="end">External</text>
+    <text x="150" y="318" text-anchor="end">VPN</text>
+  </g>
+  <!-- matrix cells: blue ramp by magnitude; empty = dot -->
+  <g font-size="11" font-family="ui-monospace, Menlo, monospace">
+    <!-- Internal row -->
+    <rect x="164" y="214" width="64" height="24" rx="4" fill="#86b6ef"/><text x="196" y="230" text-anchor="middle" fill="#0b0b0b">71,234</text>
+    <rect x="254" y="214" width="64" height="24" rx="4" fill="#86b6ef"/><text x="286" y="230" text-anchor="middle" fill="#0b0b0b">88,213</text>
+    <rect x="344" y="214" width="64" height="24" rx="4" fill="#6da7ec"/><text x="376" y="230" text-anchor="middle" fill="#0b0b0b">9,917</text>
+    <rect x="434" y="214" width="64" height="24" rx="4" fill="#cde2fb"/><text x="466" y="230" text-anchor="middle" fill="#0b0b0b">981,223</text>
+    <text x="556" y="230" text-anchor="middle" fill="#c3c2b7">·</text>
+    <text x="646" y="230" text-anchor="middle" fill="#c3c2b7">·</text>
+    <text x="736" y="230" text-anchor="middle" fill="#c3c2b7">·</text>
+    <!-- Guest row -->
+    <text x="196" y="260" text-anchor="middle" fill="#c3c2b7">·</text>
+    <text x="286" y="260" text-anchor="middle" fill="#c3c2b7">·</text>
+    <rect x="344" y="244" width="64" height="24" rx="4" fill="#2a78d6"/><text x="376" y="260" text-anchor="middle" fill="#ffffff">518</text>
+    <text x="466" y="260" text-anchor="middle" fill="#c3c2b7">·</text>
+    <text x="556" y="260" text-anchor="middle" fill="#c3c2b7">·</text>
+    <text x="646" y="260" text-anchor="middle" fill="#c3c2b7">·</text>
+    <text x="736" y="260" text-anchor="middle" fill="#c3c2b7">·</text>
+    <!-- External row -->
+    <rect x="164" y="274" width="64" height="24" rx="4" fill="#5598e7"/><text x="196" y="290" text-anchor="middle" fill="#0b0b0b">15,211</text>
+    <text x="286" y="290" text-anchor="middle" fill="#c3c2b7">·</text>
+    <text x="376" y="290" text-anchor="middle" fill="#c3c2b7">·</text>
+    <text x="466" y="290" text-anchor="middle" fill="#c3c2b7">·</text>
+    <text x="556" y="290" text-anchor="middle" fill="#c3c2b7">·</text>
+    <text x="646" y="290" text-anchor="middle" fill="#c3c2b7">·</text>
+    <text x="736" y="290" text-anchor="middle" fill="#c3c2b7">·</text>
+    <!-- VPN row -->
+    <text x="196" y="320" text-anchor="middle" fill="#c3c2b7">·</text>
+    <text x="286" y="320" text-anchor="middle" fill="#c3c2b7">·</text>
+    <rect x="344" y="304" width="64" height="24" rx="4" fill="#9ec5f4"/><text x="376" y="320" text-anchor="middle" fill="#0b0b0b">3,211</text>
+    <text x="466" y="320" text-anchor="middle" fill="#c3c2b7">·</text>
+    <text x="556" y="320" text-anchor="middle" fill="#c3c2b7">·</text>
+    <text x="646" y="320" text-anchor="middle" fill="#c3c2b7">·</text>
+    <text x="736" y="320" text-anchor="middle" fill="#c3c2b7">·</text>
+  </g>
+  <!-- flows -->
+  <text x="24" y="360" font-size="14" font-weight="700" fill="#0b0b0b">Zone-pair flows</text>
+  <rect x="24" y="372" width="952" height="172" rx="12" fill="#fcfcfb" stroke="#e1e0d9"/>
+  <g font-size="12" fill="#52514e" font-weight="600">
+    <text x="40" y="394">Src zone</text>
+    <text x="150" y="394">Dst zone</text>
+    <text x="256" y="394">Proto</text>
+    <text x="326" y="394">Action</text>
+    <text x="470" y="394">Hits</text>
+    <text x="556" y="394">Dst ports</text>
+    <text x="820" y="394">Rules matched</text>
+  </g>
+  <line x1="24" y1="404" x2="976" y2="404" stroke="#e1e0d9"/>
+  <g>
+    <rect x="25" y="405" width="950" height="26" fill="#eef7ee"/>
+    <rect x="25" y="457" width="950" height="26" fill="#fdf6e3"/>
+  </g>
+  <g font-size="12.5" fill="#0b0b0b">
+    <g><text x="40" y="422">Internal</text><text x="150" y="422">External</text><text x="256" y="422">TCP</text><circle cx="330" cy="418" r="4" fill="#0ca30c"/><text x="340" y="422">Allow</text><rect x="392" y="411" width="86" height="15" rx="7" fill="#fcfcfb" stroke="#e1e0d9"/><text x="399" y="422" font-size="10.5" fill="#52514e">rule candidate</text><text x="470" y="422" font-family="ui-monospace,Menlo,monospace">981,223</text><text x="556" y="422" font-family="ui-monospace,Menlo,monospace">80, 443</text><text x="820" y="422">Default Allow All</text></g>
+    <g><text x="40" y="448">Internal</text><text x="150" y="448">Gateway</text><text x="256" y="448">UDP</text><circle cx="330" cy="444" r="4" fill="#0ca30c"/><text x="340" y="448">Allow</text><text x="470" y="448" font-family="ui-monospace,Menlo,monospace">88,213</text><text x="556" y="448" font-family="ui-monospace,Menlo,monospace">53, 67, 123</text><text x="820" y="448">(no descr)</text></g>
+    <g><text x="40" y="474">External</text><text x="150" y="474">DMZ</text><text x="256" y="474">TCP</text><circle cx="330" cy="470" r="4" fill="#d03b3b"/><text x="340" y="474">Drop</text><rect x="392" y="463" width="82" height="15" rx="7" fill="#fcfcfb" stroke="#e1e0d9"/><text x="399" y="474" font-size="10.5" fill="#92610e">probable scan</text><text x="470" y="474" font-family="ui-monospace,Menlo,monospace">15,211</text><text x="556" y="474" font-family="ui-monospace,Menlo,monospace" fill="#92610e">1490 distinct ports (1-65312)</text></g>
+    <g><text x="40" y="500">Internal</text><text x="150" y="500">DMZ</text><text x="256" y="500">UDP</text><circle cx="330" cy="496" r="4" fill="#0ca30c"/><text x="340" y="500">Allow</text><rect x="392" y="489" width="86" height="15" rx="7" fill="#fcfcfb" stroke="#e1e0d9"/><text x="399" y="500" font-size="10.5" fill="#52514e">rule candidate</text><text x="470" y="500" font-family="ui-monospace,Menlo,monospace">71,234</text><text x="556" y="500" font-family="ui-monospace,Menlo,monospace">5060, 10000-10050</text><text x="820" y="500">Allow Telefoni SIP</text></g>
+    <g><text x="40" y="526">Guest</text><text x="150" y="526">Internal</text><text x="256" y="526">TCP</text><circle cx="330" cy="522" r="4" fill="#d03b3b"/><text x="340" y="526">Drop</text><text x="470" y="526" font-family="ui-monospace,Menlo,monospace">518</text><text x="556" y="526" font-family="ui-monospace,Menlo,monospace">445</text><text x="820" y="526">Guest isolation</text></g>
+  </g>
+</svg>
