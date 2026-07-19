@@ -84,6 +84,34 @@ Then:
 3. Watch traffic appear. Collect for one to two weeks before writing
    rules; download the CSV whenever you like.
 
+### Unraid template
+
+A ready-made Docker template is in
+[`unraid/unifi-syslog-analyzer.xml`](unraid/unifi-syslog-analyzer.xml).
+To install it:
+
+```sh
+# From the Unraid terminal:
+mkdir -p /boot/config/plugins/dockerMan/templates-user
+curl -fL -o /boot/config/plugins/dockerMan/templates-user/my-unifi-syslog-analyzer.xml \
+  https://raw.githubusercontent.com/g-guglielmi/unifi-syslog-analyzer/main/unraid/unifi-syslog-analyzer.xml
+```
+
+Then go to **Docker → Add Container** and pick *unifi-syslog-analyzer*
+from the **Template** dropdown. Fill in the UniFi controller URL and API
+key (or a static `NETWORKS_JSON` — see below), and make the data folder
+writable by the container user:
+
+```sh
+chown -R 10001:10001 /mnt/user/appdata/unifi-syslog-analyzer
+```
+
+If you run the container on a custom network (`br0` / a VLAN bridge)
+instead of `bridge`, the port mappings are ignored — the container gets
+its own IP and every port is reachable on it directly. Remember that
+Unraid blocks host ↔ container traffic on macvlan networks unless
+**Settings → Docker → Host access to custom networks** is enabled.
+
 ## Controller authentication
 
 **Use an API key.** On the console: **Admins & Users → (your admin) →
