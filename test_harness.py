@@ -230,6 +230,15 @@ def main():
           "attachment" in disp and "10000-10050" in csv_text
           and csv_text.startswith("src_zone,"), disp)
 
+    for fav in ("/favicon.ico", "/favicon.png"):
+        with urllib.request.urlopen(BASE + fav, timeout=10) as r:
+            body = r.read()
+            check(f"favicon at {fav}",
+                  r.headers.get("Content-Type") == "image/png"
+                  and body.startswith(b"\x89PNG")
+                  and "max-age" in r.headers.get("Cache-Control", ""),
+                  str(r.headers.get("Content-Type")))
+
     try:
         urllib.request.urlopen(
             urllib.request.Request(BASE + "/api/refresh-networks",
